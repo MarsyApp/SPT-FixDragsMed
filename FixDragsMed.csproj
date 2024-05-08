@@ -67,5 +67,5 @@
 		<PostBuildEvent>
 			copy "J:\myMods\develop\MarsyApp-FixDragsMed\bin\Release\net472\MarsyApp-FixDragsMed.dll" "C:\games\tark_3_5_6\SinglePlayerTarkov\BepInEx\scripts"
 		</PostBuildEvent>
-	</PropertyGroup>
+	</PropertyGroup>-->
 </Project>
