@@ -2,11 +2,10 @@
 using System.Collections.Generic;
 using System.Reflection;
 using Aki.Reflection.Patching;
-using EFT;
+using Comfort.Common;
+using EFT.HealthSystem;
 using EFT.InventoryLogic;
-using EFT.UI;
 using HarmonyLib;
-using UnityEngine;
 
 namespace FixDragsMed
 {
@@ -35,7 +34,7 @@ namespace FixDragsMed
                 new ItemViewPatches.DoMedEffectPath(),
                 new ItemViewPatches.method_1Path(),
                 new ItemViewPatches.HasPartsToApplyPath(),
-                new ItemViewPatches.method_9Path()
+                new ItemViewPatches.method_7Path()
             };
         }
 
@@ -74,10 +73,10 @@ namespace FixDragsMed
                 
                 if (!__result && FixDragsMed.checkMedKitInDragList(item.TemplateId))
                 {
-                    MethodInfo method_9 = AccessTools.Method(__instance.GetType(), "method_9");
+                    MethodInfo method_7 = AccessTools.Method(__instance.GetType(), "method_7");
                     EBodyPart? damagedBodyPart = null;
-                    bool method_9_result = (bool)method_9.Invoke(__instance, new object[] { item, bodyPart, true, damagedBodyPart });
-                    __result = method_9_result;
+                    bool method_7_result = (bool)method_7.Invoke(__instance, new object[] { item, bodyPart, true, damagedBodyPart });
+                    __result = method_7_result;
                     Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin CanApplyItem Used 1: {__result}");
                 }
             }
@@ -93,12 +92,13 @@ namespace FixDragsMed
             [PatchPostfix]
             private static void PatchPostfix(HealthControllerClass __instance, Item item, EBodyPart bodyPart, ref EBodyPart? damagedBodyPart, ref bool __result)
             {
+                Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin TryGetBodyPartToApply Used start");
                 if (!__result && FixDragsMed.checkMedKitInDragList(item.TemplateId))
                 {
-                    MethodInfo method_9 = AccessTools.Method(__instance.GetType(), "method_9");
+                    MethodInfo method_7 = AccessTools.Method(__instance.GetType(), "method_7");
                     object[] parameters = { item, bodyPart, false, damagedBodyPart };
-                    bool method_9_result = (bool)method_9.Invoke(__instance, parameters);
-                    __result = method_9_result;
+                    bool method_7_result = (bool)method_7.Invoke(__instance, parameters);
+                    __result = method_7_result;
                     damagedBodyPart = (EBodyPart?)parameters[3];
                     Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin TryGetBodyPartToApply Used 1: {__result}");
                 }
@@ -124,7 +124,7 @@ namespace FixDragsMed
         {
             protected override MethodBase GetTargetMethod()
             {
-                return typeof(ActiveHealthControllerClass).GetMethod("DoMedEffect", BindingFlags.Instance | BindingFlags.Public);
+                return typeof(ActiveHealthController).GetMethod("DoMedEffect", BindingFlags.Instance | BindingFlags.Public);
             }
 
             [PatchPostfix]
@@ -139,7 +139,7 @@ namespace FixDragsMed
         {
             protected override MethodBase GetTargetMethod()
             {
-                return typeof(GClass402).GetMethod("method_1", BindingFlags.Instance | BindingFlags.NonPublic);
+                return typeof(GClass417).GetMethod("method_1", BindingFlags.Instance | BindingFlags.Public);
             }
 
             [PatchPostfix]
@@ -154,120 +154,143 @@ namespace FixDragsMed
         {
             protected override MethodBase GetTargetMethod()
             {
-                return typeof(GClass2104<>).MakeGenericType(typeof(IEffect)).GetMethod("HasPartsToApply", BindingFlags.Instance | BindingFlags.Public);
+                return typeof(GClass2416<>).MakeGenericType(typeof(IEffect)).GetMethod("HasPartsToApply", BindingFlags.Instance | BindingFlags.Public);
             }
 
             [PatchPostfix]
-            private static void PatchPostfix(GClass2104<IEffect> __instance, ref Item item, ref (bool Result, string Error) __result) 
+            private static void PatchPostfix(GClass2416<IEffect> __instance, ref Item item, ref IResult __result) 
             {
-                Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin HasPartsToApply Used");
-                MethodInfo _method_12 = AccessTools.Method(__instance.GetType(), "method_12");
-                MethodInfo _method_10 = AccessTools.Method(__instance.GetType(), "method_10");
-                    
-                var method_12_result = (ValueTuple<bool, string>)_method_12.Invoke(__instance, new object[] { item });
-   
-                (bool, string) result = (method_12_result.Item1, method_12_result.Item2);
                 
-                if (!result.Item1)
+                Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin HasPartsToApply Used");
+                
+                MethodInfo _method_10 = AccessTools.Method(__instance.GetType(), "method_10");
+                MethodInfo _method_8 = AccessTools.Method(__instance.GetType(), "method_8");
+                
+                IResult apply = (IResult)_method_10.Invoke(__instance, new object[] { item });
+                if (apply.Failed)
                 {
-                    __result = result;
+                    __result = apply;
                     Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin HasPartsToApply Used 1: {__result}");
                     return;
                 }
-                
-                HealthEffectsComponent itemComponent = item.GetItemComponent<HealthEffectsComponent>();
-
-                if (FixDragsMed.checkMedKitInDragList(item.TemplateId) || (!(item is GClass2385) && string.IsNullOrEmpty(itemComponent?.StimulatorBuffs)))
+                    
+                HealthEffectsComponent itemComponent1 = item.GetItemComponent<HealthEffectsComponent>();
+                if (!FixDragsMed.checkMedKitInDragList(item.TemplateId) && (item is GClass2728 || !string.IsNullOrEmpty(itemComponent1?.StimulatorBuffs)))
                 {
-                    if (item.TryGetItemComponent<FoodDrinkComponent>(out var component))
-                    {
-                        bool num = component.HpPercent > 0f;
-                        __result = (num, num ? string.Empty : "Health/ItemResourceDepleted");
-                        Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin HasPartsToApply Used 2: {__result}");
-                        return;
-                    }
-                    MedKitComponent itemComponent2 = item.GetItemComponent<MedKitComponent>();
-                    bool num2 = (bool)_method_10.Invoke(__instance, new object[] { itemComponent, itemComponent2, EBodyPart.Common });
-                    __result = (num2, num2 ? string.Empty : "Inventory/IncompatibleItem");
-                    Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin HasPartsToApply Used 3: {__result}");
+                    __result = SuccessfulResult.New;
+                    Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin HasPartsToApply Used 2: {__result}");
                     return;
                 }
-                __result = (true, string.Empty);
-                Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin HasPartsToApply Used 4: {__result}");
+                   
+                FoodDrinkComponent component;
+                if (item.TryGetItemComponent(out component))
+                {
+                    if (component.HpPercent <= 0.0)
+                    {
+                        __result = new FailedResult("Health/ItemResourceDepleted");
+                        Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin HasPartsToApply Used 3: {__result}");
+                        return;
+                    }
+                    
+                    __result = SuccessfulResult.New;
+                    Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin HasPartsToApply Used 4: {__result}");
+                    return;
+                }
+                    
+                MedKitComponent itemComponent2 = item.GetItemComponent<MedKitComponent>();
+                bool num2 = (bool)_method_8.Invoke(__instance, new object[] { itemComponent1, itemComponent2, EBodyPart.Common });
+                
+                if (!num2)
+                {
+                    __result = new FailedResult("Inventory/IncompatibleItem");
+                    Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin HasPartsToApply Used 5: {__result}");
+                    return;
+                }
+
+                __result = SuccessfulResult.New;
+                Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin HasPartsToApply Used 6: {__result}");
             }
         }
         
-        public class method_9Path : ModulePatch
+        public class method_7Path : ModulePatch
         {
             protected override MethodBase GetTargetMethod()
             {
-                return AccessTools.Method(typeof(GClass2104<>).MakeGenericType(typeof(IEffect)), "method_9");
+                return AccessTools.Method(typeof(GClass2416<>).MakeGenericType(typeof(IEffect)), "method_7");
             }
             
-            private static bool smethod_0(EBodyPart? part, out EBodyPart? result)
+            public static bool smethod_0(EBodyPart? part, out EBodyPart? result)
             {
                 result = part;
                 return result.HasValue;
             }
 
             [PatchPostfix]
-            private static void PatchPostfix(GClass2104<IEffect> __instance, Item item,
+            private static void PatchPostfix(GClass2416<IEffect> __instance, Item item,
                 EBodyPart bodyPart,
                 bool fastSearch,
                 out EBodyPart? damagedBodyPart, ref bool __result)
             {
                 
-                Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin method_9 Used");
+                Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin method_7 Used");
+
+                MethodInfo _method_8 = AccessTools.Method(__instance.GetType(), "method_8"); // bool
+                MethodInfo _method_9 = AccessTools.Method(__instance.GetType(), "method_9"); // EBodyPart?
+                MethodInfo _method_10 = AccessTools.Method(__instance.GetType(), "method_10"); // IResult
+
+
+                IResult method_10_result = (IResult)_method_10.Invoke(__instance, new object[] { item });
+                if (method_10_result.Failed)
+                {
+                    __result = smethod_0(new EBodyPart?(), out damagedBodyPart);
+                    Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin method_7 Used 1 {__result}");
+                    return;
+                }
                 
-                MethodInfo _method_12 = AccessTools.Method(__instance.GetType(), "method_12");
-                MethodInfo _method_10 = AccessTools.Method(__instance.GetType(), "method_10");
-                MethodInfo _method_11 = AccessTools.Method(__instance.GetType(), "method_11");
-                
-                var method_12_result = (ValueTuple<bool, string>)_method_12.Invoke(__instance, new object[] { item });
-   
-                (bool, string) result = (method_12_result.Item1, method_12_result.Item2);
-                if (!result.Item1)
+                FoodDrinkComponent component;
+                if (item.TryGetItemComponent<FoodDrinkComponent>(out component) && component.HpPercent.Positive() &&
+                    (bodyPart == EBodyPart.Common || bodyPart == EBodyPart.Head))
                 {
-                    __result = smethod_0(null, out damagedBodyPart);
-                    Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin method_9 Used 1 {__result}");
+                    __result = smethod_0(new EBodyPart?(EBodyPart.Head), out damagedBodyPart);
+                    Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin method_7 Used 2 {__result}");
                     return;
                 }
-                if (item.TryGetItemComponent<FoodDrinkComponent>(out var component) && component.HpPercent.Positive() && (bodyPart == EBodyPart.Common || bodyPart == EBodyPart.Head))
+
+                if (item is GClass2728 && bodyPart != EBodyPart.Common && !FixDragsMed.checkMedKitInDragList(item.TemplateId))
                 {
-                    __result = smethod_0(EBodyPart.Head, out damagedBodyPart);
-                    Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin method_9 Used 2 {__result}");
+                    __result = smethod_0(new EBodyPart?(bodyPart), out damagedBodyPart);
+                    Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin method_7 Used 3 {__result}");
                     return;
                 }
-                if (item is GClass2385 && !FixDragsMed.checkMedKitInDragList(item.TemplateId) && bodyPart != EBodyPart.Common)
-                {
-                    __result = smethod_0(bodyPart, out damagedBodyPart);
-                    Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin method_9 Used 3 {__result}");
-                    return;
-                }
-                MedKitComponent itemComponent = item.GetItemComponent<MedKitComponent>();
+                    
+                MedKitComponent itemComponent1 = item.GetItemComponent<MedKitComponent>();
                 HealthEffectsComponent itemComponent2 = item.GetItemComponent<HealthEffectsComponent>();
-                if (fastSearch)
+
+                if (!fastSearch)
                 {
-                    damagedBodyPart =((bool)_method_10.Invoke(__instance, new object[] { itemComponent2, itemComponent, bodyPart }) ? new EBodyPart?(bodyPart) : null);
+                    damagedBodyPart = (EBodyPart?)_method_9.Invoke(__instance, new object[] { itemComponent2, itemComponent1, bodyPart });
                 }
                 else
                 {
-                    damagedBodyPart = (EBodyPart?)_method_11.Invoke(__instance, new object[] { itemComponent2, itemComponent, bodyPart });
+                    damagedBodyPart =(bool)_method_8.Invoke(__instance, new object[] { itemComponent2, itemComponent1, bodyPart }) ? new EBodyPart?(bodyPart) : new EBodyPart?();
                 }
-                if (item is GClass2385 && !FixDragsMed.checkMedKitInDragList(item.TemplateId))
+                
+                if (item is GClass2728 && !FixDragsMed.checkMedKitInDragList(item.TemplateId))
                 {
                     __result = smethod_0(damagedBodyPart ?? EBodyPart.Head, out damagedBodyPart);
-                    Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin method_9 Used 4 {__result}");
+                    Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin method_7 Used 4 {__result}");
                     return;
                 }
+
                 if (!string.IsNullOrEmpty(itemComponent2?.StimulatorBuffs) && !FixDragsMed.checkMedKitInDragList(item.TemplateId))
                 {
-                    __result = smethod_0(EBodyPart.Head, out damagedBodyPart);
-                    Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin method_9 Used 5 {__result}");
+                    __result = smethod_0(new EBodyPart?(EBodyPart.Head), out damagedBodyPart);
+                    Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin method_7 Used 5 {__result}");
                     return;
                 }
+                
                 __result = damagedBodyPart.HasValue;
-                Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin method_9 Used 6 {__result}");
+                Logger.LogInfo($"[MarsyApp-FixDragsMed] Plugin method_7 Used 6 {__result}");
             }
         }
     }
