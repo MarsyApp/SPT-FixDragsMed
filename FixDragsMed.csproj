@@ -62,8 +62,8 @@
 			<HintPath>..\Shared\3.5.6\EscapeFromTarkov_Data\Managed\UnityEngine.UnityWebRequestWWWModule.dll</HintPath>
 		</Reference>
 	</ItemGroup>
-
-	<PropertyGroup>
+	
+	<!--<PropertyGroup>
 		<PostBuildEvent>
 			copy "J:\myMods\develop\MarsyApp-FixDragsMed\bin\Release\net472\MarsyApp-FixDragsMed.dll" "C:\games\tark_3_5_6\SinglePlayerTarkov\BepInEx\scripts"
 		</PostBuildEvent>
